@@ -10,13 +10,25 @@ import (
 )
 
 func init() {
-	reexec.Register("nsInitialisation", func() {
-		fmt.Printf("\n >>> namespace setup code goes here <<<\n\n")
-		nRun()
-	})
+	reexec.Register("nsInitialisation", nsInitialisation)
 	if reexec.Init() {
 		os.Exit(0)
 	}
+}
+
+func nsInitialisation() {
+	newRootPath := os.Args[1]
+
+	if err := mountProc(newRootPath); err != nil {
+		fmt.Printf("Error mounting /proc - %s\n", err)
+		os.Exit(1)
+	}
+
+	if err := pivotRoot(newRootPath); err != nil {
+		fmt.Printf("Error running pivot_root - %s\n", err)
+		os.Exit(1)
+	}
+	nRun()
 }
 
 func nRun() {
@@ -61,7 +73,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	cmd := reexec.Command("nsInitialisation")
+	rootfsPath := "/tmp/ns-process/rootfs"
+
+	cmd := reexec.Command("nsInitialisation", rootfsPath)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
